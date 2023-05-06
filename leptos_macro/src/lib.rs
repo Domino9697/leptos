@@ -802,9 +802,15 @@ pub fn slot(args: proc_macro::TokenStream, s: TokenStream) -> TokenStream {
         );
     }
 
-    parse_macro_input!(s as slot::Model)
-        .into_token_stream()
-        .into()
+    let input = match syn::parse::<slot::Model>(s.clone()) {
+        Ok(slot) => slot,
+        // If any of the steps for this macro fail, we still want to expand the macro.
+        // This is to ensure development tools such as IDE completions keep working
+        // inside the macro.
+        Err(err) => return token_stream_with_error(s, err),
+    };
+
+    input.into_token_stream().into()
 }
 
 /// Declares that a function is a [server function](https://docs.rs/server_fn/latest/server_fn/index.html).
