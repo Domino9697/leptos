@@ -38,6 +38,14 @@ mod component;
 mod slot;
 mod template;
 
+fn token_stream_with_error(
+    mut tokens: TokenStream,
+    error: syn::Error,
+) -> TokenStream {
+    tokens.extend(TokenStream::from(error.into_compile_error()));
+    tokens
+}
+
 /// The `view` macro uses RSX (like JSX, but Rust!) It follows most of the
 /// same rules as HTML, with the following differences:
 ///
@@ -663,7 +671,15 @@ pub fn component(args: proc_macro::TokenStream, s: TokenStream) -> TokenStream {
         false
     };
 
-    parse_macro_input!(s as component::Model)
+    let input = match syn::parse::<component::Model>(s.clone()) {
+        Ok(component) => component,
+        // If any of the steps for this macro fail, we still want to expand the macro.
+        // This is to ensure development tools such as IDE completions keep working
+        // inside the macro.
+        Err(err) => return token_stream_with_error(s, err),
+    };
+
+    input
         .is_transparent(is_transparent)
         .into_token_stream()
         .into()
