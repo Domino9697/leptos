@@ -875,11 +875,14 @@ pub fn server(args: proc_macro::TokenStream, s: TokenStream) -> TokenStream {
     };
     match server_macro_impl(
         args.into(),
-        s.into(),
+        s.clone().into(),
         Some(context),
         Some(syn::parse_quote!(::leptos::server_fn)),
     ) {
-        Err(e) => e.to_compile_error().into(),
+        // If any of the steps for this macro fail, we still want to expand the macro.
+        // This is to ensure development tools such as IDE completions keep working
+        // inside the macro.
+        Err(e) => token_stream_with_error(s, e),
         Ok(s) => s.to_token_stream().into(),
     }
 }
